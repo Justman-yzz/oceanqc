@@ -74,3 +74,18 @@ def detect_all_outliers(df: pd.DataFrame) -> pd.DataFrame:
     domain_outliers = detect_outliers_domain(df)
     iqr_outliers = detect_outliers_iqr(df)
     return domain_outliers | iqr_outliers
+
+
+def fill_missing(df: pd.DataFrame, strategy: str = "ffill") -> pd.DataFrame:
+    """결측치를 전략에 따라 처리한다."""
+    # 이전 시점의 값을 앞으로 채움
+    if strategy == "ffill":  # 운영 관점에서 시계열 연속성이 필요할 때(짧은 공백 메우기)
+        return df.ffill()
+    # 앞뒤 값을 직선으로 연결해 중간 결측을 보정
+    if strategy == "linear":  # 추세선이 부드럽게 이어지길 원할 때(짧은 간격 보간)
+        return df.interpolate(method="linear")
+    # 원본 그대로 반환(결측 보정 안 함)
+    if strategy == "none":  # 품질 진단 원본 기준으로 결측률/가용률/알림 판단할 때
+        return df
+    # 그 외 값. 잘못된 CLI 입력을 초기에 명확히 막기 위함
+    raise ValueError("지원하지 않는 결측치 처리 전략입니다. (ffill, linear, none)")
