@@ -42,6 +42,8 @@ def load_csv(filepath: str) -> pd.DataFrame:
     try:
         df["datetime"] = pd.to_datetime(df["datetime"], errors="raise")
     except Exception as exc:
-        raise ValueError("datetime 컬럼 변환에 실패했습니다. 형식을 확인해주세요.") from exc
+        raise ValueError(
+            "datetime 컬럼 변환에 실패했습니다. 형식을 확인해주세요."
+        ) from exc
 
     return df.sort_values("datetime").reset_index(drop=True)
