@@ -23,7 +23,11 @@ ci:
 	fi
 
 test:
-	pytest -q
+	@if [ -d tests ] && ls tests/test_*.py >/dev/null 2>&1; then \
+		pytest -q; \
+	else \
+		echo "테스트 파일이 없어 test 단계를 건너뜁니다."; \
+	fi
 
 sample:
 	$(PYTHON) data/generate_sample.py

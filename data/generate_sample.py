@@ -58,7 +58,9 @@ MEASURE_COLS = [
 ]
 
 
-def _base_station_frame(station: dict, datetimes: pd.DatetimeIndex, rng: np.random.Generator) -> pd.DataFrame:
+def _base_station_frame(
+    station: dict, datetimes: pd.DatetimeIndex, rng: np.random.Generator
+) -> pd.DataFrame:
     """관측소 1곳의 시간별 기초 데이터를 생성한다."""
     n = len(datetimes)
 
@@ -92,7 +94,9 @@ def _base_station_frame(station: dict, datetimes: pd.DatetimeIndex, rng: np.rand
     )
 
 
-def _inject_missing(df: pd.DataFrame, rng: np.random.Generator, frac: float = 0.08) -> pd.DataFrame:
+def _inject_missing(
+    df: pd.DataFrame, rng: np.random.Generator, frac: float = 0.08
+) -> pd.DataFrame:
     """수치 관측 컬럼에 결측치를 주입한다."""
     out = df.copy()
     for col in MEASURE_COLS:
@@ -101,7 +105,9 @@ def _inject_missing(df: pd.DataFrame, rng: np.random.Generator, frac: float = 0.
     return out
 
 
-def _inject_outliers(df: pd.DataFrame, rng: np.random.Generator, frac: float = 0.02) -> pd.DataFrame:
+def _inject_outliers(
+    df: pd.DataFrame, rng: np.random.Generator, frac: float = 0.02
+) -> pd.DataFrame:
     """도메인 임계값을 벗어나는 이상치를 주입한다."""
     out = df.copy()
     n_outliers = max(1, int(len(out) * frac))
@@ -111,7 +117,9 @@ def _inject_outliers(df: pd.DataFrame, rng: np.random.Generator, frac: float = 0
         if len(valid_idx) == 0:
             continue
 
-        sampled_idx = rng.choice(valid_idx.to_numpy(), size=min(n_outliers, len(valid_idx)), replace=False)
+        sampled_idx = rng.choice(
+            valid_idx.to_numpy(), size=min(n_outliers, len(valid_idx)), replace=False
+        )
         half = len(sampled_idx) // 2
         lower_idx = sampled_idx[:half]
         upper_idx = sampled_idx[half:]
@@ -120,9 +128,13 @@ def _inject_outliers(df: pd.DataFrame, rng: np.random.Generator, frac: float = 0
         upper_gap = (upper - lower) * 0.2 + 1
 
         if len(lower_idx) > 0:
-            out.loc[lower_idx, col] = lower - rng.uniform(1, lower_gap, size=len(lower_idx))
+            out.loc[lower_idx, col] = lower - rng.uniform(
+                1, lower_gap, size=len(lower_idx)
+            )
         if len(upper_idx) > 0:
-            out.loc[upper_idx, col] = upper + rng.uniform(1, upper_gap, size=len(upper_idx))
+            out.loc[upper_idx, col] = upper + rng.uniform(
+                1, upper_gap, size=len(upper_idx)
+            )
 
     return out
 
