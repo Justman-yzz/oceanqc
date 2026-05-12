@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pandas as pd
 
-from config import DOMAIN_BOUNDS
+from config import ALERT_CONDITION, DOMAIN_BOUNDS, GRADE_THRESHOLDS
 from src.preprocessor import detect_all_outliers
 
 
@@ -42,3 +42,59 @@ def calc_availability_rate(df: pd.DataFrame) -> pd.DataFrame:
         )
 
     return pd.DataFrame(rows).sort_values("station_name").reset_index(drop=True)
+
+
+def grade_station(availability_rate: float) -> str:
+    """가용률 기준으로 품질 등급(A~F)을 반환한다."""
+    if availability_rate >= GRADE_THRESHOLDS["A"]:
+        return "A"
+    if availability_rate >= GRADE_THRESHOLDS["B"]:
+        return "B"
+    if availability_rate >= GRADE_THRESHOLDS["C"]:
+        return "C"
+    if availability_rate >= GRADE_THRESHOLDS["D"]:
+        return "D"
+    return "F"
+
+
+def check_alert(station_df: pd.DataFrame, availability_rate: float) -> bool:
+    """주의 필요 관측소 여부를 반환한다.
+
+    조건:
+    1) 가용률 < ALERT_CONDITION["min_availability"]
+    2) 연속 결측 일수 >= ALERT_CONDITION["consecutive_missing_days"]
+    둘 중 하나라도 만족하면 True
+    """
+    min_availability = ALERT_CONDITION["min_availability"]
+    required_days = ALERT_CONDITION["consecutive_missing_days"]
+
+    if availability_rate < min_availability:
+        return True
+
+    if "datetime" not in station_df.columns:
+        raise ValueError("필수 컬럼이 없습니다: datetime")
+
+    metric_cols = [col for col in DOMAIN_BOUNDS.keys() if col in station_df.columns]
+    if not metric_cols:
+        return False
+
+    temp = station_df.copy()
+    temp["date"] = pd.to_datetime(temp["datetime"], errors="coerce").dt.date
+
+    # 하루라도 수치 컬럼이 하나 이상 결측이면 해당 날짜를 결측일로 간주
+    daily_missing = (
+        temp.groupby("date")[metric_cols]
+        .apply(lambda x: x.isna().any(axis=1).any())
+        .reset_index(name="is_missing_day")
+    )
+
+    streak = 0
+    for is_missing in daily_missing["is_missing_day"]:
+        if is_missing:
+            streak += 1
+            if streak >= required_days:
+                return True
+        else:
+            streak = 0
+
+    return False
