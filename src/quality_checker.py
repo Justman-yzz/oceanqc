@@ -40,7 +40,9 @@ def _build_station_base_metrics(df: pd.DataFrame) -> pd.DataFrame:
         outlier_cells = int(outlier_mask.loc[station_idx, metric_cols].sum().sum())
 
         valid_cells = total_cells - missing_cells - outlier_cells
-        availability_rate = (valid_cells / total_cells * 100) if total_cells > 0 else 0.0
+        availability_rate = (
+            (valid_cells / total_cells * 100) if total_cells > 0 else 0.0
+        )
         missing_rate = (missing_cells / total_cells * 100) if total_cells > 0 else 0.0
         outlier_rate = (outlier_cells / total_cells * 100) if total_cells > 0 else 0.0
 
@@ -60,7 +62,11 @@ def _build_station_base_metrics(df: pd.DataFrame) -> pd.DataFrame:
 def calc_availability_rate(df: pd.DataFrame) -> pd.DataFrame:
     """관측소별 데이터 가용률(%)을 계산한다."""
     base = _build_station_base_metrics(df)
-    return base[["station_name", "availability_rate"]].sort_values("station_name").reset_index(drop=True)
+    return (
+        base[["station_name", "availability_rate"]]
+        .sort_values("station_name")
+        .reset_index(drop=True)
+    )
 
 
 def grade_station(availability_rate: float) -> str:
@@ -126,4 +132,6 @@ def build_quality_summary(df: pd.DataFrame) -> pd.DataFrame:
     result["grade"] = result["availability_rate"].apply(grade_station)
     result["is_alert"] = result["station_name"].map(alert_map).fillna(False)
 
-    return result.sort_values("availability_rate", ascending=False).reset_index(drop=True)
+    return result.sort_values("availability_rate", ascending=False).reset_index(
+        drop=True
+    )
