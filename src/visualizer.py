@@ -123,23 +123,33 @@ def chart_quality_grade(quality_df: pd.DataFrame) -> go.Figure:
         drop=True
     )
     plot_df["station_label"] = plot_df["station_name"].apply(_station_label)
-
     bar_colors = [GRADE_COLORS.get(g, "#8A8A8A") for g in plot_df["grade"]]
+
+    bar_x = plot_df["availability_rate"].round(2).tolist()
+    bar_y = plot_df["station_label"].tolist()
+    bar_text = [f"{v:.1f}%" for v in bar_x]
+    bar_customdata = list(
+        zip(
+            plot_df["station_name"].tolist(),
+            plot_df["grade"].tolist(),
+            bar_x,
+        )
+    )
 
     fig = go.Figure(
         data=[
             go.Bar(
-                x=plot_df["availability_rate"],
-                y=plot_df["station_label"],
+                x=bar_x,
+                y=bar_y,
                 orientation="h",
                 marker={"color": bar_colors},
-                customdata=plot_df["station_name"],
-                text=plot_df["availability_rate"].map(lambda v: f"{v:.1f}%"),
+                customdata=bar_customdata,
+                text=bar_text,
                 textposition="outside",
                 hovertemplate=(
-                    "관측소: %{customdata}<br>"
-                    "가용률: %{x:.2f}%<br>"
-                    "등급: %{marker.color}<extra></extra>"
+                    "관측소: %{customdata[0]}<br>"
+                    "가용률: %{customdata[2]:.2f}%<br>"
+                    "등급: %{customdata[1]}<extra></extra>"
                 ),
             )
         ]
@@ -154,7 +164,7 @@ def chart_quality_grade(quality_df: pd.DataFrame) -> go.Figure:
     fig.update_xaxes(range=[0, 100])
     fig.update_yaxes(
         categoryorder="array",
-        categoryarray=plot_df["station_label"].tolist(),
+        categoryarray=bar_y,
     )
 
     return fig
