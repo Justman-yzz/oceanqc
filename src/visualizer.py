@@ -5,16 +5,22 @@ from __future__ import annotations
 import pandas as pd
 import plotly.graph_objects as go
 
-from config import DOMAIN_BOUNDS
+from config import DOMAIN_BOUNDS, STATION_COLORS
 from src.preprocessor import detect_all_outliers
 
 
 GRADE_COLORS = {
-    "A": "#639922",   # 초록
-    "B": "#378ADD",   # 파랑
-    "C": "#EF9F27",   # 주황
-    "D": "#D85A30",   # 주황빨강
-    "F": "#A32D2D",   # 빨강
+    "A": "#639922",  # 초록
+    "B": "#378ADD",  # 파랑
+    "C": "#EF9F27",  # 주황
+    "D": "#D85A30",  # 주황빨강
+    "F": "#A32D2D",  # 빨강
+}
+
+STATION_SHORT_NAMES = {
+    "모의 관측소 A": "obs-A",
+    "모의 관측소 B": "obs-B",
+    "모의 관측소 C": "obs-C",
 }
 
 
@@ -23,6 +29,23 @@ def _require_columns(df: pd.DataFrame, required: list[str]) -> None:
     missing = [col for col in required if col not in df.columns]
     if missing:
         raise ValueError(f"필수 컬럼이 없습니다: {missing}")
+
+
+def _ordered_station_names(station_names: list[str]) -> list[str]:
+    """관측소 이름을 STATION_COLORS 기준 순서로 정렬한다."""
+    base_order = [name for name in STATION_COLORS.keys() if name in station_names]
+    others = [name for name in station_names if name not in base_order]
+    return base_order + sorted(others)
+
+
+def _station_color(station_name: str) -> str:
+    """관측소별 고정 색상을 반환한다."""
+    return STATION_COLORS.get(station_name, "#8A8A8A")
+
+
+def _station_label(station_name: str) -> str:
+    """차트 범례용 축약 관측소명을 반환한다."""
+    return STATION_SHORT_NAMES.get(station_name, station_name)
 
 
 def chart_quality_grade(quality_df: pd.DataFrame) -> go.Figure:
@@ -90,18 +113,21 @@ def chart_missing_heatmap(df: pd.DataFrame) -> go.Figure:
         .round(2)
     )
 
+    ordered_cols = _ordered_station_names(pivot.columns.tolist())
+    pivot = pivot.reindex(columns=ordered_cols)
+
     fig = go.Figure(
         data=[
             go.Heatmap(
                 z=pivot.values,
-                x=pivot.columns.tolist(),
+                x=[_station_label(col) for col in pivot.columns.tolist()],
                 y=pivot.index.astype(str).tolist(),
                 zmin=0,
                 zmax=30,
                 colorscale=[
-                    [0.0, "#67B66B"],   # 초록 (0%)
-                    [0.5, "#EF9F27"],   # 주황
-                    [1.0, "#F3B5B5"],   # 연빨강 (30%+)
+                    [0.0, "#67B66B"],  # 초록 (0%)
+                    [0.5, "#EF9F27"],  # 주황
+                    [1.0, "#F3B5B5"],  # 연빨강 (30%+)
                 ],
                 colorbar={"title": "결측률(%)"},
                 hovertemplate=(
@@ -137,14 +163,21 @@ def chart_daily_wind_speed(df: pd.DataFrame) -> go.Figure:
         .reset_index()
     )
 
+    ordered_stations = _ordered_station_names(daily["station_name"].dropna().unique().tolist())
+
     fig = go.Figure()
-    for station_name, station_df in daily.groupby("station_name", dropna=False):
+    for station_name in ordered_stations:
+        station_df = daily[daily["station_name"] == station_name]
+        if station_df.empty:
+            continue
+
         fig.add_trace(
             go.Scatter(
                 x=station_df["date"],
                 y=station_df["wind_speed"],
                 mode="lines",
-                name=str(station_name),
+                name=_station_label(station_name),
+                line=dict(color=_station_color(station_name), width=2),
                 hovertemplate=(
                     "날짜: %{x}<br>"
                     "관측소: %{fullData.name}<br>"
@@ -179,14 +212,23 @@ def chart_wind_wave_scatter(df: pd.DataFrame) -> go.Figure:
 
     fig = go.Figure()
 
-    for station_name, station_df in normal_df.groupby("station_name", dropna=False):
+    ordered_stations = _ordered_station_names(normal_df["station_name"].dropna().unique().tolist())
+    for station_name in ordered_stations:
+        station_df = normal_df[normal_df["station_name"] == station_name]
+        if station_df.empty:
+            continue
+
         fig.add_trace(
             go.Scatter(
                 x=station_df["wind_speed"],
                 y=station_df["wave_height"],
                 mode="markers",
-                name=str(station_name),
-                marker=dict(size=6, opacity=0.75),
+                name=_station_label(station_name),
+                marker=dict(
+                    size=6,
+                    opacity=0.75,
+                    color=_station_color(station_name),
+                ),
                 hovertemplate=(
                     "관측소: %{fullData.name}<br>"
                     "풍속: %{x:.2f} m/s<br>"
@@ -224,3 +266,13 @@ def chart_wind_wave_scatter(df: pd.DataFrame) -> go.Figure:
         margin=dict(l=80, r=30, t=60, b=50),
     )
     return fig
+
+
+def build_all_charts(df: pd.DataFrame, quality_df: pd.DataFrame) -> dict[str, go.Figure]:
+    """리포트 출력 순서대로 차트 4개를 묶어 반환한다."""
+    return {
+        "관측소별 데이터 가용률 및 품질 등급": chart_quality_grade(quality_df),
+        "날짜별 관측소 결측률 히트맵": chart_missing_heatmap(df),
+        "일별 평균 풍속 추이 (관측소별)": chart_daily_wind_speed(df),
+        "풍속 × 파고 상관관계": chart_wind_wave_scatter(df),
+    }
