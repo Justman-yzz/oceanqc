@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import numpy as np
 import pandas as pd
 import plotly.graph_objects as go
 
@@ -189,6 +190,9 @@ def chart_missing_heatmap(df: pd.DataFrame) -> go.Figure:
     missing_rate = (
         (missing_cells / total_cells * 100).rename("missing_rate").reset_index()
     )
+    z_q95 = float(missing_rate["missing_rate"].quantile(0.95))
+    zmax_value = float(np.ceil(max(30.0, z_q95) / 5.0) * 5.0)
+    zmax_value = min(100.0, zmax_value)
 
     missing_rate["date"] = pd.to_datetime(missing_rate["date"], errors="coerce")
     missing_rate = missing_rate.dropna(subset=["date"])
@@ -232,7 +236,7 @@ def chart_missing_heatmap(df: pd.DataFrame) -> go.Figure:
                 y=y_labels,
                 visible=(idx == 0),
                 zmin=0,
-                zmax=30,
+                zmax=zmax_value,
                 xgap=2,
                 ygap=2,
                 colorscale=[
@@ -260,23 +264,13 @@ def chart_missing_heatmap(df: pd.DataFrame) -> go.Figure:
             dict(
                 label=month_label,
                 method="update",
-                args=[
-                    {"visible": visible_mask},
-                    {
-                        "title": {
-                            "text": f"날짜별 관측소 결측률 히트맵 ({month_label})",
-                            "x": 0.02,
-                            "xanchor": "left",
-                            "font": {"size": 22, "color": CHART_FONT_COLOR},
-                        }
-                    },
-                ],
+                args=[{"visible": visible_mask}],
             )
         )
 
     _apply_dark_layout(
         fig,
-        title=f"날짜별 관측소 결측률 히트맵 ({int(missing_rate['month_num'].min())}월)",
+        title="",
         xaxis_title="일자",
         yaxis_title="관측소",
         show_xgrid=False,
@@ -294,7 +288,10 @@ def chart_missing_heatmap(df: pd.DataFrame) -> go.Figure:
                 type="buttons",
                 direction="right",
                 x=0.0,
-                y=1.16,
+                y=1.0,
+                xanchor="left",
+                yanchor="bottom",
+                pad={"t": 2, "r": 4},
                 showactive=True,
                 bgcolor="rgba(27, 32, 40, 0.85)",
                 bordercolor=CHART_LINE_COLOR,
