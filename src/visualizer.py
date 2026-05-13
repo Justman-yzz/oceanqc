@@ -171,7 +171,7 @@ def chart_quality_grade(quality_df: pd.DataFrame) -> go.Figure:
 
 
 def chart_missing_heatmap(df: pd.DataFrame) -> go.Figure:
-    """날짜(행) × 관측소(열) 결측률 히트맵을 생성한다."""
+    """기간 구간(열) × 관측소(행) 결측률 히트맵을 생성한다."""
     _require_columns(df, ["datetime", "station_name"])
 
     metric_cols = [col for col in DOMAIN_BOUNDS.keys() if col in df.columns]
@@ -183,47 +183,67 @@ def chart_missing_heatmap(df: pd.DataFrame) -> go.Figure:
     temp = temp.dropna(subset=["date"])
 
     grouped = temp.groupby(["date", "station_name"], dropna=False)
-
     total_cells = grouped.size() * len(metric_cols)
     missing_cells = grouped[metric_cols].apply(lambda x: x.isna().sum().sum())
     missing_rate = (
         (missing_cells / total_cells * 100).rename("missing_rate").reset_index()
     )
 
+    # 날짜를 시간 순으로 3구간으로 압축: 초반/중반/후반
+    ordered_dates = sorted(missing_rate["date"].unique())
+    if len(ordered_dates) < 3:
+        raise ValueError("히트맵 생성을 위한 날짜 데이터가 충분하지 않습니다.")
+
+    date_to_idx = {d: i for i, d in enumerate(ordered_dates)}
+    n = len(ordered_dates)
+    cut_1 = n // 3
+    cut_2 = (2 * n) // 3
+
+    def _period_label(d):
+        idx = date_to_idx[d]
+        if idx < cut_1:
+            return "1월 초"
+        if idx < cut_2:
+            return "2월"
+        return "3월 말"
+
+    missing_rate["period"] = missing_rate["date"].map(_period_label)
+
     pivot = (
         missing_rate.pivot_table(
-            index="date",
-            columns="station_name",
+            index="station_name",
+            columns="period",
             values="missing_rate",
             aggfunc="mean",
         )
+        .reindex(columns=["1월 초", "2월", "3월 말"])
         .fillna(0.0)
         .round(2)
     )
 
-    ordered_cols = _ordered_station_names(pivot.columns.tolist())
-    pivot = pivot.reindex(columns=ordered_cols)
+    ordered_rows = _ordered_station_names(pivot.index.tolist())
+    pivot = pivot.reindex(index=ordered_rows)
 
     fig = go.Figure(
         data=[
             go.Heatmap(
                 z=pivot.values,
-                x=[_station_label(col) for col in pivot.columns.tolist()],
-                y=pivot.index.astype(str).tolist(),
+                x=pivot.columns.tolist(),
+                y=[_station_label(name) for name in pivot.index.tolist()],
                 zmin=0,
                 zmax=30,
                 colorscale=[
-                    [0.0, "#DCE7D1"],  # 0%
+                    [0.0, "#DCE7D1"],   # 0%
                     [0.55, "#F0BF66"],  # 중간
-                    [1.0, "#E8873A"],  # 30%+
+                    [1.0, "#E8873A"],   # 30%+
                 ],
                 colorbar={
                     "title": {"text": "결측률(%)", "font": {"color": CHART_FONT_COLOR}},
                     "tickfont": {"color": CHART_TICK_COLOR},
                 },
                 hovertemplate=(
-                    "날짜: %{y}<br>"
-                    "관측소: %{x}<br>"
+                    "관측소: %{y}<br>"
+                    "기간: %{x}<br>"
                     "결측률: %{z:.2f}%<extra></extra>"
                 ),
             )
@@ -233,12 +253,11 @@ def chart_missing_heatmap(df: pd.DataFrame) -> go.Figure:
     _apply_dark_layout(
         fig,
         title="날짜별 관측소 결측률 히트맵",
-        xaxis_title="관측소",
-        yaxis_title="날짜",
+        xaxis_title="기간",
+        yaxis_title="관측소",
         show_xgrid=False,
         show_ygrid=False,
     )
-    fig.update_yaxes(nticks=10)
 
     return fig
 
