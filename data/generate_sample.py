@@ -289,18 +289,35 @@ def _inject_missing_by_station(
 
     # 일부 관측소는 연속 결측일을 강제로 삽입해 경보 조건 재현
     burst_days = int(quality.get("burst_days", 0))
-    if burst_days > 0:
-        if len(station_dates) >= burst_days:
-            start_idx = int(rng.integers(0, len(station_dates) - burst_days + 1))
-            burst_start = pd.Timestamp(station_dates[start_idx])
-            burst_end = burst_start + pd.Timedelta(days=burst_days)
+    if burst_days > 0 and len(station_dates) >= burst_days:
+        start_idx = int(rng.integers(0, len(station_dates) - burst_days + 1))
+        burst_start = pd.Timestamp(station_dates[start_idx])
+        burst_end = burst_start + pd.Timedelta(days=burst_days)
 
-            burst_mask = (
+        burst_mask = (
                 (out["station_id"] == station_id)
                 & (out["datetime"] >= burst_start)
                 & (out["datetime"] < burst_end)
-            )
-            out.loc[burst_mask, MEASURE_COLS] = np.nan
+        )
+        burst_idx = out.index[burst_mask]
+        if len(burst_idx) > 0:
+            # 연속 결측일(alert) 재현을 위해 기준 컬럼은 burst 기간 전체 결측
+            out.loc[burst_idx, "wind_speed"] = np.nan
+
+            # 나머지 컬럼은 부분/시간대 결측으로 완화해 과도한 100% 결측 스파이크 방지
+            extra_cols_pool = [c for c in MEASURE_COLS if c != "wind_speed"]
+            extra_col_count = int(rng.integers(1, min(3, len(extra_cols_pool)) + 1))
+            extra_cols = rng.choice(extra_cols_pool, size=extra_col_count, replace=False)
+
+            for col in extra_cols:
+                burst_hours = int(len(burst_idx))
+                pick_hours = max(1, int(burst_hours * 0.35))
+                chosen_hours = rng.choice(
+                    burst_idx.to_numpy(),
+                    size=min(pick_hours, burst_hours),
+                    replace=False,
+                )
+                out.loc[chosen_hours, col] = np.nan
 
     return out
 
