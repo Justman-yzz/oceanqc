@@ -6,6 +6,7 @@ import pandas as pd
 import plotly.graph_objects as go
 
 from config import DOMAIN_BOUNDS
+from src.preprocessor import detect_all_outliers
 
 
 GRADE_COLORS = {
@@ -116,6 +117,109 @@ def chart_missing_heatmap(df: pd.DataFrame) -> go.Figure:
         title="날짜별 관측소 결측률 히트맵",
         xaxis_title="관측소",
         yaxis_title="날짜",
+        template="plotly_white",
+        margin=dict(l=80, r=30, t=60, b=50),
+    )
+    return fig
+
+
+def chart_daily_wind_speed(df: pd.DataFrame) -> go.Figure:
+    """일별 평균 풍속 라인 차트를 생성한다."""
+    _require_columns(df, ["datetime", "station_name", "wind_speed"])
+
+    temp = df.copy()
+    temp["date"] = pd.to_datetime(temp["datetime"], errors="coerce").dt.date
+    temp = temp.dropna(subset=["date", "wind_speed"])
+
+    daily = (
+        temp.groupby(["date", "station_name"], dropna=False)["wind_speed"]
+        .mean()
+        .reset_index()
+    )
+
+    fig = go.Figure()
+    for station_name, station_df in daily.groupby("station_name", dropna=False):
+        fig.add_trace(
+            go.Scatter(
+                x=station_df["date"],
+                y=station_df["wind_speed"],
+                mode="lines",
+                name=str(station_name),
+                hovertemplate=(
+                    "날짜: %{x}<br>"
+                    "관측소: %{fullData.name}<br>"
+                    "평균 풍속: %{y:.2f} m/s<extra></extra>"
+                ),
+            )
+        )
+
+    fig.update_layout(
+        title="일별 평균 풍속 추이 (관측소별)",
+        xaxis_title="날짜",
+        yaxis_title="풍속(m/s)",
+        template="plotly_white",
+        margin=dict(l=80, r=30, t=60, b=50),
+    )
+    return fig
+
+
+def chart_wind_wave_scatter(df: pd.DataFrame) -> go.Figure:
+    """풍속(x) × 파고(y) 산점도를 생성한다."""
+    _require_columns(df, ["station_name", "wind_speed", "wave_height"])
+
+    outlier_mask = detect_all_outliers(df)
+    pair_outlier = outlier_mask[["wind_speed", "wave_height"]].any(axis=1)
+
+    temp = df.copy()
+    temp["is_outlier"] = pair_outlier
+    plot_df = temp.dropna(subset=["wind_speed", "wave_height"])
+
+    normal_df = plot_df[~plot_df["is_outlier"]]
+    outlier_df = plot_df[plot_df["is_outlier"]]
+
+    fig = go.Figure()
+
+    for station_name, station_df in normal_df.groupby("station_name", dropna=False):
+        fig.add_trace(
+            go.Scatter(
+                x=station_df["wind_speed"],
+                y=station_df["wave_height"],
+                mode="markers",
+                name=str(station_name),
+                marker=dict(size=6, opacity=0.75),
+                hovertemplate=(
+                    "관측소: %{fullData.name}<br>"
+                    "풍속: %{x:.2f} m/s<br>"
+                    "파고: %{y:.2f} m<extra></extra>"
+                ),
+            )
+        )
+
+    if not outlier_df.empty:
+        fig.add_trace(
+            go.Scatter(
+                x=outlier_df["wind_speed"],
+                y=outlier_df["wave_height"],
+                mode="markers",
+                name="이상치",
+                marker=dict(
+                    size=8,
+                    color="#EF9F27",
+                    line=dict(color="#854F0B", width=1.5),
+                    symbol="diamond",
+                ),
+                hovertemplate=(
+                    "구분: 이상치<br>"
+                    "풍속: %{x:.2f} m/s<br>"
+                    "파고: %{y:.2f} m<extra></extra>"
+                ),
+            )
+        )
+
+    fig.update_layout(
+        title="풍속 × 파고 상관관계",
+        xaxis_title="풍속(m/s)",
+        yaxis_title="파고(m)",
         template="plotly_white",
         margin=dict(l=80, r=30, t=60, b=50),
     )
