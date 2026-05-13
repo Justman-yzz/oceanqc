@@ -17,14 +17,14 @@ ci:
 	black --check .
 	$(PYTHON) -m py_compile config.py data/generate_sample.py
 	@if [ -d tests ] && ls tests/test_*.py >/dev/null 2>&1; then \
-		pytest -q; \
+		$(PYTHON) -m pytest -q; \
 	else \
 		echo "테스트 파일이 없어 test 단계는 건너뜁니다."; \
 	fi
 
 test:
 	@if [ -d tests ] && ls tests/test_*.py >/dev/null 2>&1; then \
-		pytest -q; \
+		$(PYTHON) -m pytest -q; \
 	else \
 		echo "테스트 파일이 없어 test 단계를 건너뜁니다."; \
 	fi
