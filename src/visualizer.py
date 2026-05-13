@@ -6,7 +6,7 @@ import numpy as np
 import pandas as pd
 import plotly.graph_objects as go
 
-from config import DOMAIN_BOUNDS, STATION_COLORS
+from config import DOMAIN_BOUNDS, STATION_COLORS, WIND_LINE_GAP_THRESHOLDS
 from src.preprocessor import detect_all_outliers
 
 
@@ -306,49 +306,239 @@ def chart_missing_heatmap(df: pd.DataFrame) -> go.Figure:
 
 
 def chart_daily_wind_speed(df: pd.DataFrame) -> go.Figure:
-    """일별 평균 풍속 라인 차트를 생성한다."""
+    """전체/월 선택형 일별 평균 풍속 라인 차트를 생성한다."""
     _require_columns(df, ["datetime", "station_name", "wind_speed"])
 
+    safe_max = WIND_LINE_GAP_THRESHOLDS["safe_max_missing_ratio"]
+    warn_max = WIND_LINE_GAP_THRESHOLDS["warn_max_missing_ratio"]
+    if not (0.0 <= safe_max < warn_max <= 1.0):
+        raise ValueError(
+            "WIND_LINE_GAP_THRESHOLDS 설정이 올바르지 않습니다. "
+            "(0 <= safe < warn <= 1 이어야 합니다.)"
+        )
+
     temp = df.copy()
-    temp["date"] = pd.to_datetime(temp["datetime"], errors="coerce").dt.date
-    temp = temp.dropna(subset=["date", "wind_speed"])
+    temp["dt"] = pd.to_datetime(temp["datetime"], errors="coerce")
+    temp = temp.dropna(subset=["dt"])
+    temp["date"] = temp["dt"].dt.date
+    temp["month_num"] = temp["dt"].dt.month
+    temp["day"] = temp["dt"].dt.day
 
     daily = (
-        temp.groupby(["date", "station_name"], dropna=False)["wind_speed"]
-        .mean()
+        temp.groupby(["date", "month_num", "day", "station_name"], dropna=False)
+        .agg(
+            wind_speed_mean=("wind_speed", "mean"),
+            wind_obs_count=("wind_speed", "count"),
+            day_row_count=("wind_speed", "size"),
+        )
         .reset_index()
+    )
+    daily["date"] = pd.to_datetime(daily["date"], errors="coerce")
+    daily = daily.dropna(subset=["date"])
+
+    if daily.empty:
+        raise ValueError("풍속 추이 차트를 생성할 데이터가 없습니다.")
+
+    daily["missing_ratio"] = np.where(
+        daily["day_row_count"] > 0,
+        1.0 - (daily["wind_obs_count"] / daily["day_row_count"]),
+        1.0,
+    )
+    daily["gap_level"] = np.select(
+        [
+            daily["missing_ratio"] < safe_max,
+            daily["missing_ratio"] < warn_max,
+        ],
+        ["safe", "warn"],
+        default="severe",
     )
 
     ordered_stations = _ordered_station_names(
         daily["station_name"].dropna().unique().tolist()
     )
+    month_nums = sorted(int(m) for m in daily["month_num"].dropna().unique().tolist())
+    scope_defs = [("전체", "all", None)] + [(f"{m}월", f"m{m}", m) for m in month_nums]
 
     fig = go.Figure()
-    for station_name in ordered_stations:
-        station_df = daily[daily["station_name"] == station_name]
-        if station_df.empty:
-            continue
+    trace_scope_keys: list[str] = []
 
-        fig.add_trace(
-            go.Scatter(
-                x=station_df["date"],
-                y=station_df["wind_speed"],
-                mode="lines",
-                name=_station_label(station_name),
-                line=dict(color=_station_color(station_name), width=2.4),
-                hovertemplate=(
-                    "날짜: %{x}<br>"
-                    "관측소: %{fullData.name}<br>"
-                    "평균 풍속: %{y:.2f} m/s<extra></extra>"
-                ),
+    for scope_label, scope_key, scope_month in scope_defs:
+        scope_df = daily if scope_month is None else daily[daily["month_num"] == scope_month]
+
+        for station_name in ordered_stations:
+            station_df = (
+                scope_df[scope_df["station_name"] == station_name]
+                .sort_values("date")
+                .reset_index(drop=True)
             )
-        )
+            if station_df.empty:
+                continue
+
+            color = _station_color(station_name)
+            station_label = _station_label(station_name)
+            is_default_scope = scope_month is None
+
+            if scope_month is None:
+                x_vals = station_df["date"].tolist()
+                hover_head = "날짜: %{x|%Y-%m-%d}<br>"
+            else:
+                x_vals = station_df["day"].tolist()
+                hover_head = f"월: {scope_label}<br>일자: %{{x}}일<br>"
+
+            y_vals = [
+                None if pd.isna(v) else float(v)
+                for v in station_df["wind_speed_mean"].tolist()
+            ]
+            level_mask = station_df["gap_level"].tolist()
+
+            # safe: 실선, warn: 점선, severe: 선 끊김(None)
+            y_solid = [y if lv == "safe" else None for y, lv in zip(y_vals, level_mask)]
+            y_dash = [y if lv == "warn" else None for y, lv in zip(y_vals, level_mask)]
+
+            fig.add_trace(
+                go.Scatter(
+                    x=x_vals,
+                    y=y_solid,
+                    mode="lines+markers",
+                    name=station_label,
+                    legendgroup=station_name,
+                    showlegend=True,
+                    visible=is_default_scope,
+                    connectgaps=False,
+                    line=dict(color=color, width=2.2, dash="solid"),
+                    marker=dict(size=4.2, color=color),
+                    hovertemplate=(
+                        hover_head
+                        + "관측소: %{fullData.name}<br>"
+                        + "평균 풍속: %{y:.2f} m/s<extra></extra>"
+                    ),
+                )
+            )
+            trace_scope_keys.append(scope_key)
+
+            fig.add_trace(
+                go.Scatter(
+                    x=x_vals,
+                    y=y_dash,
+                    mode="lines+markers",
+                    name=f"{station_label} 결측주의",
+                    legendgroup=station_name,
+                    showlegend=False,
+                    visible=is_default_scope,
+                    connectgaps=False,
+                    line=dict(color=color, width=2.2, dash="dot"),
+                    marker=dict(size=3.2, color=color, opacity=0.9),
+                    hovertemplate=(
+                        hover_head
+                        + f"관측소: {station_label}<br>"
+                        + "구간: 결측 주의(점선)<br>"
+                        + "평균 풍속: %{y:.2f} m/s<extra></extra>"
+                    ),
+                )
+            )
+            trace_scope_keys.append(scope_key)
 
     _apply_dark_layout(
         fig,
-        title="일별 평균 풍속 추이 (관측소별)",
+        title="",
         xaxis_title="날짜",
         yaxis_title="풍속(m/s)",
+    )
+
+    valid_ws = daily["wind_speed_mean"].dropna()
+    y_max = float(valid_ws.max()) if not valid_ws.empty else 1.0
+    y_upper = max(1.0, round(y_max * 1.12, 1))
+    fig.update_yaxes(range=[0, y_upper])
+
+    fig.update_layout(
+        margin=dict(t=210),
+        legend=dict(
+            orientation="h",
+            x=0.0,
+            y=1.32,
+            xanchor="left",
+            yanchor="bottom",
+            traceorder="normal",
+            groupclick="togglegroup",
+            font={"color": CHART_TICK_COLOR, "size": 11},
+        ),
+        uirevision="wind-month-toggle",
+    )
+
+    buttons = []
+    for scope_label, scope_key, scope_month in scope_defs:
+        visible_mask = [k == scope_key for k in trace_scope_keys]
+
+        if scope_month is None:
+            xaxis_update = {
+                "type": "date",
+                "title": {"text": "날짜", "font": {"color": CHART_FONT_COLOR}},
+                "tickformat": "%m-%d",
+                "dtick": "M1",
+                "showgrid": True,
+                "gridcolor": CHART_GRID_COLOR,
+                "gridwidth": 1,
+            }
+            shapes_update = []
+        else:
+            week_lines = [1, 8, 15, 22, 29]
+            week_labels_x = [4.5, 11.5, 18.5, 25.5]
+
+            xaxis_update = {
+                "type": "linear",
+                "title": {"text": "주차", "font": {"color": CHART_FONT_COLOR}},
+                "range": [0.5, 31.5],
+                "tickmode": "array",
+                "tickvals": week_labels_x,
+                "ticktext": ["1주", "2주", "3주", "4주"],
+                "showgrid": False,
+                "zeroline": False,
+            }
+
+            shapes_update = [
+                {
+                    "type": "line",
+                    "xref": "x",
+                    "yref": "paper",
+                    "x0": x,
+                    "x1": x,
+                    "y0": 0,
+                    "y1": 1,
+                    "line": {"color": "rgba(255, 255, 255, 0.42)", "width": 1.6},
+                    "layer": "below",
+                }
+                for x in week_lines
+            ]
+
+        buttons.append(
+            dict(
+                label=scope_label,
+                method="update",
+                args=[
+                    {"visible": visible_mask},
+                    {"xaxis": xaxis_update, "shapes": shapes_update},
+                ],
+            )
+        )
+
+    fig.update_layout(
+        updatemenus=[
+            dict(
+                type="buttons",
+                direction="right",
+                x=0.0,
+                y=1.10,
+                xanchor="left",
+                yanchor="bottom",
+                showactive=True,
+                pad={"t": 2, "r": 4},
+                bgcolor="rgba(27, 32, 40, 0.85)",
+                bordercolor=CHART_LINE_COLOR,
+                borderwidth=1,
+                font={"color": CHART_TICK_COLOR, "size": 12},
+                buttons=buttons,
+            )
+        ]
     )
 
     return fig

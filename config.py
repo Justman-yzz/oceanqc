@@ -40,3 +40,8 @@ STATION_COLORS = {
     "모의 관측소 I": "#bcbd22",
     "모의 관측소 J": "#7f7f7f",
 }
+
+WIND_LINE_GAP_THRESHOLDS = {
+    "safe_max_missing_ratio": 0.10,  # 10% 미만: 실선
+    "warn_max_missing_ratio": 0.50,  # 10~50%: 점선, 50% 이상: 끊김
+}
