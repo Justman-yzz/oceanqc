@@ -52,7 +52,9 @@ def chart_quality_grade(quality_df: pd.DataFrame) -> go.Figure:
     """관측소별 데이터 가용률 및 품질 등급 수평 막대 차트를 생성한다."""
     _require_columns(quality_df, ["station_name", "availability_rate", "grade"])
 
-    plot_df = quality_df.sort_values("availability_rate", ascending=True).reset_index(drop=True)
+    plot_df = quality_df.sort_values("availability_rate", ascending=True).reset_index(
+        drop=True
+    )
     bar_colors = [GRADE_COLORS.get(g, "#8A8A8A") for g in plot_df["grade"]]
 
     fig = go.Figure(
@@ -100,7 +102,9 @@ def chart_missing_heatmap(df: pd.DataFrame) -> go.Figure:
 
     total_cells = grouped.size() * len(metric_cols)
     missing_cells = grouped[metric_cols].apply(lambda x: x.isna().sum().sum())
-    missing_rate = (missing_cells / total_cells * 100).rename("missing_rate").reset_index()
+    missing_rate = (
+        (missing_cells / total_cells * 100).rename("missing_rate").reset_index()
+    )
 
     pivot = (
         missing_rate.pivot_table(
@@ -163,7 +167,9 @@ def chart_daily_wind_speed(df: pd.DataFrame) -> go.Figure:
         .reset_index()
     )
 
-    ordered_stations = _ordered_station_names(daily["station_name"].dropna().unique().tolist())
+    ordered_stations = _ordered_station_names(
+        daily["station_name"].dropna().unique().tolist()
+    )
 
     fig = go.Figure()
     for station_name in ordered_stations:
@@ -212,7 +218,9 @@ def chart_wind_wave_scatter(df: pd.DataFrame) -> go.Figure:
 
     fig = go.Figure()
 
-    ordered_stations = _ordered_station_names(normal_df["station_name"].dropna().unique().tolist())
+    ordered_stations = _ordered_station_names(
+        normal_df["station_name"].dropna().unique().tolist()
+    )
     for station_name in ordered_stations:
         station_df = normal_df[normal_df["station_name"] == station_name]
         if station_df.empty:
@@ -268,7 +276,9 @@ def chart_wind_wave_scatter(df: pd.DataFrame) -> go.Figure:
     return fig
 
 
-def build_all_charts(df: pd.DataFrame, quality_df: pd.DataFrame) -> dict[str, go.Figure]:
+def build_all_charts(
+    df: pd.DataFrame, quality_df: pd.DataFrame
+) -> dict[str, go.Figure]:
     """리포트 출력 순서대로 차트 4개를 묶어 반환한다."""
     return {
         "관측소별 데이터 가용률 및 품질 등급": chart_quality_grade(quality_df),

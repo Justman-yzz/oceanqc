@@ -6,6 +6,7 @@ import pandas as pd
 
 from config import DOMAIN_BOUNDS
 
+
 def daily_mean(df: pd.DataFrame) -> pd.DataFrame:
     """날짜별 × 관측소별 수치 컬럼 평균을 계산한다."""
     if "datetime" not in df.columns:
