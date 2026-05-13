@@ -1,0 +1,467 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>OceanQC 품질 진단 리포트</title>
+
+  <link
+    rel="stylesheet"
+    href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css"
+  />
+
+  <style>
+    :root {
+      --bg: #f6f8fb;
+      --surface: #ffffff;
+      --line: #e7ebf3;
+      --text: #1f2a37;
+      --text-muted: #5b6472;
+      --brand: #1f77b4;
+      --accent: #ef9f27;
+      --shadow: 0 8px 24px rgba(19, 35, 67, 0.06);
+
+      --grade-a-bg: #eaf3de;
+      --grade-a-tx: #3b6d11;
+      --grade-b-bg: #e6f1fb;
+      --grade-b-tx: #185fa5;
+      --grade-c-bg: #faeeda;
+      --grade-c-tx: #854f0b;
+      --grade-d-bg: #faece7;
+      --grade-d-tx: #993c1d;
+      --grade-f-bg: #fcebeb;
+      --grade-f-tx: #a32d2d;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font-family: Pretendard, "Noto Sans KR", Inter, system-ui, -apple-system, sans-serif;
+      font-weight: 400;
+      line-height: 1.5;
+    }
+
+    .container {
+      width: min(1200px, 92vw);
+      margin: 28px auto 40px;
+    }
+
+    .topbar {
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      box-shadow: var(--shadow);
+      padding: 18px 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .topbar-left {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .logo {
+      font-size: 22px;
+      font-weight: 500;
+      color: var(--brand);
+      letter-spacing: 0.2px;
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      border-radius: 999px;
+      padding: 5px 10px;
+      font-size: 12px;
+      border: 1px solid var(--line);
+      background: #f9fbff;
+      color: var(--text-muted);
+      white-space: nowrap;
+    }
+
+    .badge-accent {
+      border-color: #f8d9ac;
+      background: #fff3e4;
+      color: #8f4f03;
+    }
+
+    .meta {
+      color: var(--text-muted);
+      font-size: 13px;
+      text-align: right;
+      white-space: nowrap;
+    }
+
+    .section {
+      margin-top: 18px;
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      box-shadow: var(--shadow);
+      padding: 20px;
+    }
+
+    .section-title {
+      margin: 0 0 14px;
+      font-size: 18px;
+      font-weight: 500;
+      color: var(--text);
+    }
+
+    .cards {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 12px;
+    }
+
+    .card {
+      background: #f9fbff;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 14px;
+      min-height: 110px;
+    }
+
+    .card-label {
+      font-size: 12px;
+      color: var(--text-muted);
+      margin-bottom: 8px;
+    }
+
+    .card-value {
+      font-size: 24px;
+      font-weight: 500;
+      line-height: 1.2;
+    }
+
+    .card-note {
+      margin-top: 8px;
+      font-size: 11px;
+      color: #6a7483;
+      line-height: 1.4;
+    }
+
+    .card-value-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .warn-val {
+      color: var(--grade-f-tx);
+    }
+
+    .grade-badge {
+      display: inline-flex;
+      align-items: center;
+      border-radius: 999px;
+      padding: 4px 9px;
+      font-size: 12px;
+      font-weight: 500;
+      border: 1px solid transparent;
+      line-height: 1;
+    }
+
+    .grade-a {
+      background: var(--grade-a-bg);
+      color: var(--grade-a-tx);
+      border-color: #d4e8be;
+    }
+
+    .grade-b {
+      background: var(--grade-b-bg);
+      color: var(--grade-b-tx);
+      border-color: #c6dcf4;
+    }
+
+    .grade-c {
+      background: var(--grade-c-bg);
+      color: var(--grade-c-tx);
+      border-color: #efd8b0;
+    }
+
+    .grade-d {
+      background: var(--grade-d-bg);
+      color: var(--grade-d-tx);
+      border-color: #efd0c6;
+    }
+
+    .grade-f {
+      background: var(--grade-f-bg);
+      color: var(--grade-f-tx);
+      border-color: #f5caca;
+    }
+
+    .availability {
+      min-width: 230px;
+    }
+
+    .availability-track {
+      width: 180px;
+      height: 8px;
+      border-radius: 999px;
+      background: #ecf1f7;
+      overflow: hidden;
+      display: inline-block;
+      vertical-align: middle;
+      margin-right: 8px;
+    }
+
+    .availability-fill {
+      height: 100%;
+      background: linear-gradient(90deg, #7cb342 0%, #4a86cf 100%);
+      border-radius: 999px;
+    }
+
+    .availability-text {
+      font-size: 13px;
+      color: #334155;
+      vertical-align: middle;
+    }
+
+    .table-wrap {
+      overflow-x: auto;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 14px;
+    }
+
+    th, td {
+      border-bottom: 1px solid var(--line);
+      padding: 10px 8px;
+      text-align: left;
+      vertical-align: middle;
+      white-space: nowrap;
+    }
+
+    th {
+      font-weight: 500;
+      color: #334155;
+      background: #f8fafc;
+    }
+
+    .quote {
+      border-left: 4px solid #c9d7ec;
+      background: #f7faff;
+      border-radius: 10px;
+      padding: 14px 16px;
+      color: #3d4a5d;
+      font-size: 14px;
+    }
+
+    .quote p {
+      margin: 4px 0;
+    }
+
+    .charts {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 14px;
+    }
+
+    .chart-card {
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: #ffffff;
+      padding: 12px;
+    }
+
+    .chart-title {
+      font-size: 15px;
+      font-weight: 500;
+      margin: 0 0 8px;
+    }
+
+    .ch-note {
+      margin-top: 8px;
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    .footer {
+      margin-top: 16px;
+      padding: 12px 2px;
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    .mono {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      color: #324155;
+    }
+
+    @media (max-width: 980px) {
+      .cards {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+      .charts {
+        grid-template-columns: 1fr;
+      }
+      .meta {
+        text-align: left;
+      }
+      .topbar {
+        flex-direction: column;
+        align-items: flex-start;
+      }
+      .footer {
+        flex-direction: column;
+      }
+    }
+
+    @media (max-width: 600px) {
+      .cards {
+        grid-template-columns: 1fr;
+      }
+      .container {
+        width: 94vw;
+      }
+    }
+  </style>
+  <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+</head>
+<body>
+  <div class="container">
+
+    <!-- 1) 헤더 -->
+    <header class="topbar">
+      <div class="topbar-left">
+        <span>🌊</span>
+        <span class="logo">OceanQC</span>
+        <span class="badge">품질 진단 리포트</span>
+        <span class="badge badge-accent">모의 데이터</span>
+      </div>
+      <div class="meta">
+        분석 기간: {{ meta.date_range }}<br />
+        생성 시각: {{ meta.generated_at }}
+      </div>
+    </header>
+
+    <!-- 2) 요약 카드 -->
+    <section class="section">
+      <h2 class="section-title">요약 지표</h2>
+      <div class="cards">
+        <article class="card">
+          <div class="card-label">총 관측소 수</div>
+          <div class="card-value">{{ meta.station_count }}</div>
+        </article>
+
+        <article class="card">
+          <div class="card-label">평균 데이터 가용률</div>
+          <div class="card-value">{{ meta.avg_availability }}%</div>
+          <div class="card-note">
+            (유효값 ÷ 전체 관측값) × 100 / 유효값 = 전체 − 결측 − 이상치
+          </div>
+        </article>
+
+        <article class="card">
+          <div class="card-label">최우수 관측소</div>
+          <div class="card-value-row">
+            <div class="card-value">{{ meta.best_station }}</div>
+            <span class="grade-badge grade-{{ meta.best_grade|lower }}">
+              {{ meta.best_grade }}
+            </span>
+          </div>
+        </article>
+
+        <article class="card">
+          <div class="card-label">주의 필요 관측소 수</div>
+          <div class="card-value {% if meta.alert_count > 0 %}warn-val{% endif %}">
+            {{ meta.alert_count }}
+          </div>
+          <div class="card-note">
+            기준: 가용률 80% 미만 또는 연속 결측 3일 이상
+          </div>
+        </article>
+      </div>
+    </section>
+
+    <!-- 3) 품질 테이블 -->
+    <section class="section">
+      <h2 class="section-title">관측소별 데이터 품질 등급</h2>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>관측소</th>
+              <th>총 관측 수</th>
+              <th>결측률</th>
+              <th>이상치율</th>
+              <th>데이터 가용률</th>
+              <th>등급</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for row in quality_rows %}
+            <tr>
+              <td>{{ row.station_name }}</td>
+              <td>{{ row.total_records }}</td>
+              <td>{{ row.missing_rate }}%</td>
+              <td>{{ row.outlier_rate }}%</td>
+              <td class="availability">
+                <span class="availability-track">
+                  <span class="availability-fill" style="width: {{ row.availability_rate }}%;"></span>
+                </span>
+                <span class="availability-text">{{ row.availability_rate }}%</span>
+              </td>
+              <td>
+                <span class="grade-badge grade-{{ row.grade|lower }}">
+                  {{ row.grade }}
+                </span>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- 4) 산식 블록 -->
+    <section class="section">
+      <h2 class="section-title">가용률 산식</h2>
+      <div class="quote">
+        <p>가용률(%) = (전체 관측값 − 결측값 − 이상치값) ÷ 전체 관측값 × 100</p>
+        <p>평균 가용률 = 관측소별 가용률의 산술 평균</p>
+        <p>이상치 기준: 도메인 임계값(1차) + IQR 1.5배(2차)</p>
+      </div>
+    </section>
+
+    <!-- 5) 차트 영역 -->
+    <section class="section">
+      <h2 class="section-title">시각화 분석</h2>
+      <div class="charts">
+        {% for title, chart_html in charts.items() %}
+        <article class="chart-card">
+          <h3 class="chart-title">{{ title }}</h3>
+          {{ chart_html | safe }}
+          <p class="ch-note">해당 차트의 기준/해석 설명은 최종 리포트 단계에서 반영합니다.</p>
+        </article>
+        {% endfor %}
+      </div>
+    </section>
+
+    <!-- 6) 푸터 -->
+    <footer class="footer">
+      <div>Generated by OceanQC · github.com/yourname/oceanqc</div>
+      <div class="mono">python main.py -i data/sample.csv -o reports/</div>
+    </footer>
+  </div>
+</body>
+</html>
