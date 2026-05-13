@@ -240,9 +240,9 @@ def chart_missing_heatmap(df: pd.DataFrame) -> go.Figure:
                 xgap=2,
                 ygap=2,
                 colorscale=[
-                    [0.0, "#DCE7D1"],   # 0%
+                    [0.0, "#DCE7D1"],  # 0%
                     [0.55, "#F0BF66"],  # 중간
-                    [1.0, "#E8873A"],   # 30%+
+                    [1.0, "#E8873A"],  # 30%+
                 ],
                 colorbar={
                     "title": {"text": "결측률(%)", "font": {"color": CHART_FONT_COLOR}},
@@ -363,7 +363,9 @@ def chart_daily_wind_speed(df: pd.DataFrame) -> go.Figure:
     trace_scope_keys: list[str] = []
 
     for scope_label, scope_key, scope_month in scope_defs:
-        scope_df = daily if scope_month is None else daily[daily["month_num"] == scope_month]
+        scope_df = (
+            daily if scope_month is None else daily[daily["month_num"] == scope_month]
+        )
 
         for station_name in ordered_stations:
             station_df = (
@@ -557,7 +559,9 @@ def chart_wind_wave_scatter(df: pd.DataFrame) -> go.Figure:
     # 1) 도메인/통계 이상치 후보 계산
     domain_mask_df = detect_outliers_domain(temp)
     iqr_mask_df = detect_outliers_iqr(temp)
-    temp["is_domain_outlier"] = domain_mask_df[["wind_speed", "wave_height"]].any(axis=1)
+    temp["is_domain_outlier"] = domain_mask_df[["wind_speed", "wave_height"]].any(
+        axis=1
+    )
     temp["is_iqr_outlier"] = iqr_mask_df[["wind_speed", "wave_height"]].any(axis=1)
 
     # 2) 교차검증용 기준선(정상 후보만) 계산
@@ -679,13 +683,14 @@ def chart_wind_wave_scatter(df: pd.DataFrame) -> go.Figure:
                 name="정상구간 추세선",
                 line=dict(color="rgba(245,245,245,0.78)", width=1.6, dash="dash"),
                 hovertemplate=(
-                    "정상구간 추세선<br>"
-                    "y = {:.3f}x + {:.3f}<extra></extra>"
+                    "정상구간 추세선<br>" "y = {:.3f}x + {:.3f}<extra></extra>"
                 ).format(slope_n, intercept_n),
             )
         )
 
-    def _range_with_padding(values: pd.Series, fallback: tuple[float, float]) -> list[float]:
+    def _range_with_padding(
+        values: pd.Series, fallback: tuple[float, float]
+    ) -> list[float]:
         """하위 1% ~ 상위 99% 구간을 기준으로 축 범위를 계산한다."""
         arr = values.dropna().to_numpy(dtype=float)
         if arr.size == 0:
@@ -725,9 +730,7 @@ def chart_wind_wave_scatter(df: pd.DataFrame) -> go.Figure:
             else "정상구간 Pearson r: 약한 상관"
         )
 
-    summary_text = (
-        f"최종 이상치 {outlier_n:,}건 / 전체 {total_n:,}건 ({outlier_ratio:.2f}%) · {corr_label}"
-    )
+    summary_text = f"최종 이상치 {outlier_n:,}건 / 전체 {total_n:,}건 ({outlier_ratio:.2f}%) · {corr_label}"
 
     fig.update_layout(
         height=680,

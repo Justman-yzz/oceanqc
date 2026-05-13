@@ -183,7 +183,9 @@ def _sample_station_profile(station: dict, rng: np.random.Generator) -> dict:
     quality = {
         "missing_rate": float(rng.uniform(*q["missing_rate"])),
         "outlier_rate": float(rng.uniform(*q["outlier_rate"])),
-        "missing_days": int(rng.integers(q["missing_days"][0], q["missing_days"][1] + 1)),
+        "missing_days": int(
+            rng.integers(q["missing_days"][0], q["missing_days"][1] + 1)
+        ),
         "burst_days": int(rng.integers(q["burst_days"][0], q["burst_days"][1] + 1)),
     }
 
@@ -295,9 +297,9 @@ def _inject_missing_by_station(
         burst_end = burst_start + pd.Timedelta(days=burst_days)
 
         burst_mask = (
-                (out["station_id"] == station_id)
-                & (out["datetime"] >= burst_start)
-                & (out["datetime"] < burst_end)
+            (out["station_id"] == station_id)
+            & (out["datetime"] >= burst_start)
+            & (out["datetime"] < burst_end)
         )
         burst_idx = out.index[burst_mask]
         if len(burst_idx) > 0:
@@ -307,7 +309,9 @@ def _inject_missing_by_station(
             # 나머지 컬럼은 부분/시간대 결측으로 완화해 과도한 100% 결측 스파이크 방지
             extra_cols_pool = [c for c in MEASURE_COLS if c != "wind_speed"]
             extra_col_count = int(rng.integers(1, min(3, len(extra_cols_pool)) + 1))
-            extra_cols = rng.choice(extra_cols_pool, size=extra_col_count, replace=False)
+            extra_cols = rng.choice(
+                extra_cols_pool, size=extra_col_count, replace=False
+            )
 
             for col in extra_cols:
                 burst_hours = int(len(burst_idx))
