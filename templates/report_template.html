@@ -220,14 +220,58 @@
 
     .availability-fill {
       height: 100%;
-      background: linear-gradient(90deg, #7cb342 0%, #4a86cf 100%);
       border-radius: 999px;
+    }
+
+    .availability-fill-a {
+      background: #639922;
+    }
+
+    .availability-fill-b {
+      background: #378add;
+    }
+
+    .availability-fill-c {
+      background: #ef9f27;
+    }
+
+    .availability-fill-d {
+      background: #d85a30;
+    }
+
+    .availability-fill-f {
+      background: #a32d2d;
     }
 
     .availability-text {
       font-size: 13px;
       color: #334155;
       vertical-align: middle;
+    }
+
+    .availability-text-a {
+      color: #3b6d11;
+      font-weight: 500;
+    }
+
+    .availability-text-b {
+      color: #185fa5;
+      font-weight: 500;
+    }
+
+    .availability-text-c {
+      color: #854f0b;
+      font-weight: 500;
+    }
+
+    .availability-text-d {
+      color: #993c1d;
+      font-weight: 500;
+    }
+
+    .availability-text-f {
+      color: #a32d2d;
+      font-weight: 500;
     }
 
     .table-wrap {
@@ -417,9 +461,9 @@
               <td>{{ row.outlier_rate }}%</td>
               <td class="availability">
                 <span class="availability-track">
-                  <span class="availability-fill" style="width: {{ row.availability_rate }}%;"></span>
+                  <span class="availability-fill availability-fill-{{ row.grade|lower }}" style="width: {{ row.availability_rate }}%;"></span>
                 </span>
-                <span class="availability-text">{{ row.availability_rate }}%</span>
+                <span class="availability-text availability-text-{{ row.grade|lower }}">{{ row.availability_rate }}%</span>
               </td>
               <td>
                 <span class="grade-badge grade-{{ row.grade|lower }}">
