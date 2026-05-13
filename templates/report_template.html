@@ -507,7 +507,11 @@
         <article class="chart-card">
           <h3 class="chart-title">{{ title }}</h3>
           {{ chart_html | safe }}
+          {% if title == "풍속-파고 관계 기반 이상치 확인" %}
+          <p class="ch-note">풍속-파고 상관에서 크게 벗어난 점(주황)은 도메인 이상치 탐지 결과와 교차 검증한 값입니다.</p>
+          {% else %}
           <p class="ch-note">해당 차트의 기준/해석 설명은 최종 리포트 단계에서 반영합니다.</p>
+          {% endif %}
         </article>
         {% endfor %}
       </div>

@@ -7,7 +7,7 @@ import pandas as pd
 import plotly.graph_objects as go
 
 from config import DOMAIN_BOUNDS, STATION_COLORS, WIND_LINE_GAP_THRESHOLDS
-from src.preprocessor import detect_all_outliers
+from src.preprocessor import detect_outliers_domain, detect_outliers_iqr
 
 
 GRADE_COLORS = {
@@ -451,6 +451,7 @@ def chart_daily_wind_speed(df: pd.DataFrame) -> go.Figure:
     fig.update_yaxes(range=[0, y_upper])
 
     fig.update_layout(
+        height=680,
         margin=dict(t=210),
         legend=dict(
             orientation="h",
@@ -545,18 +546,65 @@ def chart_daily_wind_speed(df: pd.DataFrame) -> go.Figure:
 
 
 def chart_wind_wave_scatter(df: pd.DataFrame) -> go.Figure:
-    """풍속(x) × 파고(y) 산점도를 생성한다."""
+    """풍속-파고 관계 기반 이상치 확인 산점도를 생성한다."""
     _require_columns(df, ["station_name", "wind_speed", "wave_height"])
 
-    outlier_mask = detect_all_outliers(df)
-    pair_outlier = outlier_mask[["wind_speed", "wave_height"]].any(axis=1)
-
     temp = df.copy()
-    temp["is_outlier"] = pair_outlier
-    plot_df = temp.dropna(subset=["wind_speed", "wave_height"])
+    temp = temp.dropna(subset=["wind_speed", "wave_height"]).reset_index(drop=True)
+    if temp.empty:
+        raise ValueError("산점도를 생성할 풍속/파고 데이터가 없습니다.")
 
-    normal_df = plot_df[~plot_df["is_outlier"]]
-    outlier_df = plot_df[plot_df["is_outlier"]]
+    # 1) 도메인/통계 이상치 후보 계산
+    domain_mask_df = detect_outliers_domain(temp)
+    iqr_mask_df = detect_outliers_iqr(temp)
+    temp["is_domain_outlier"] = domain_mask_df[["wind_speed", "wave_height"]].any(axis=1)
+    temp["is_iqr_outlier"] = iqr_mask_df[["wind_speed", "wave_height"]].any(axis=1)
+
+    # 2) 교차검증용 기준선(정상 후보만) 계산
+    baseline_df = temp[~temp["is_domain_outlier"] & ~temp["is_iqr_outlier"]].copy()
+    model_ready = (
+        len(baseline_df) >= 20
+        and float(baseline_df["wind_speed"].std(ddof=0)) > 0.0
+        and float(baseline_df["wave_height"].std(ddof=0)) > 0.0
+    )
+
+    temp["is_residual_outlier"] = False
+    corr_value = None
+    residual_cut = 0.25
+
+    if model_ready:
+        bx = baseline_df["wind_speed"].to_numpy(dtype=float)
+        by = baseline_df["wave_height"].to_numpy(dtype=float)
+        slope, intercept = np.polyfit(bx, by, 1)
+
+        base_pred = slope * bx + intercept
+        base_residual = np.abs(by - base_pred)
+
+        # 정상 후보 residual 상위 0.5% 기준으로 교차검증 임계값 설정
+        residual_cut = float(np.quantile(base_residual, 0.995))
+        residual_cut = max(residual_cut, 0.25)
+
+        all_x = temp["wind_speed"].to_numpy(dtype=float)
+        all_y = temp["wave_height"].to_numpy(dtype=float)
+        all_pred = slope * all_x + intercept
+        all_residual = np.abs(all_y - all_pred)
+        temp["is_residual_outlier"] = all_residual > residual_cut
+
+        # Pearson은 정상 구간에서만 계산
+        if len(baseline_df) >= 2:
+            corr_value = float(np.corrcoef(bx, by)[0, 1])
+
+    # 3) 최종 이상치: 도메인 OR (IQR AND 교차검증 통과)
+    if model_ready:
+        temp["is_outlier_final"] = temp["is_domain_outlier"] | (
+            temp["is_iqr_outlier"] & temp["is_residual_outlier"]
+        )
+    else:
+        # 모델 계산 불가 시 보수적 fallback
+        temp["is_outlier_final"] = temp["is_domain_outlier"] | temp["is_iqr_outlier"]
+
+    normal_df = temp[~temp["is_outlier_final"]].copy()
+    outlier_df = temp[temp["is_outlier_final"]].copy()
 
     fig = go.Figure()
 
@@ -575,10 +623,10 @@ def chart_wind_wave_scatter(df: pd.DataFrame) -> go.Figure:
                 mode="markers",
                 name=_station_label(station_name),
                 marker=dict(
-                    size=6.5,
-                    opacity=0.82,
+                    size=6.0,
+                    opacity=0.30,
                     color=_station_color(station_name),
-                    line=dict(color="rgba(0,0,0,0.45)", width=0.5),
+                    line=dict(color="rgba(0,0,0,0.25)", width=0.4),
                 ),
                 hovertemplate=(
                     "관측소: %{fullData.name}<br>"
@@ -594,26 +642,150 @@ def chart_wind_wave_scatter(df: pd.DataFrame) -> go.Figure:
                 x=outlier_df["wind_speed"],
                 y=outlier_df["wave_height"],
                 mode="markers",
-                name="이상치",
+                name="최종 이상치",
                 marker=dict(
-                    size=8.5,
+                    size=8.8,
                     color="#EF9F27",
-                    line=dict(color="#854F0B", width=1.6),
+                    opacity=0.95,
                     symbol="diamond",
+                    line=dict(color="#854F0B", width=1.8),
                 ),
                 hovertemplate=(
-                    "구분: 이상치<br>"
+                    "구분: 최종 이상치<br>"
                     "풍속: %{x:.2f} m/s<br>"
                     "파고: %{y:.2f} m<extra></extra>"
                 ),
             )
         )
 
+    # 정상 구간 추세선(옵션 B: 정상 데이터 기준)
+    show_trend = (
+        len(normal_df) >= 20
+        and float(normal_df["wind_speed"].std(ddof=0)) > 0.0
+        and float(normal_df["wave_height"].std(ddof=0)) > 0.0
+    )
+    if show_trend:
+        nx = normal_df["wind_speed"].to_numpy(dtype=float)
+        ny = normal_df["wave_height"].to_numpy(dtype=float)
+        slope_n, intercept_n = np.polyfit(nx, ny, 1)
+        x_line = np.linspace(float(np.min(nx)), float(np.max(nx)), 120)
+        y_line = slope_n * x_line + intercept_n
+
+        fig.add_trace(
+            go.Scatter(
+                x=x_line,
+                y=y_line,
+                mode="lines",
+                name="정상구간 추세선",
+                line=dict(color="rgba(245,245,245,0.78)", width=1.6, dash="dash"),
+                hovertemplate=(
+                    "정상구간 추세선<br>"
+                    "y = {:.3f}x + {:.3f}<extra></extra>"
+                ).format(slope_n, intercept_n),
+            )
+        )
+
+    def _range_with_padding(values: pd.Series, fallback: tuple[float, float]) -> list[float]:
+        """하위 1% ~ 상위 99% 구간을 기준으로 축 범위를 계산한다."""
+        arr = values.dropna().to_numpy(dtype=float)
+        if arr.size == 0:
+            return [fallback[0], fallback[1]]
+        lo = float(np.quantile(arr, 0.01))
+        hi = float(np.quantile(arr, 0.99))
+        if hi <= lo:
+            lo = float(np.min(arr))
+            hi = float(np.max(arr))
+        span = max(hi - lo, 1.0)
+        pad = span * 0.10
+        return [lo - pad, hi + pad]
+
+    x_zoom = _range_with_padding(normal_df["wind_speed"], DOMAIN_BOUNDS["wind_speed"])
+    y_zoom = _range_with_padding(normal_df["wave_height"], DOMAIN_BOUNDS["wave_height"])
+    x_full = _range_with_padding(temp["wind_speed"], DOMAIN_BOUNDS["wind_speed"])
+    y_full = _range_with_padding(temp["wave_height"], DOMAIN_BOUNDS["wave_height"])
+
     _apply_dark_layout(
         fig,
-        title="풍속 × 파고 상관관계",
+        title="",  # 카드 제목만 사용
         xaxis_title="풍속(m/s)",
         yaxis_title="파고(m)",
+    )
+    fig.update_xaxes(range=x_zoom)
+    fig.update_yaxes(range=y_zoom)
+
+    total_n = len(temp)
+    outlier_n = int(outlier_df.shape[0])
+    outlier_ratio = (outlier_n / total_n * 100.0) if total_n > 0 else 0.0
+
+    corr_label = "정상구간 Pearson r: 계산불가"
+    if corr_value is not None:
+        corr_label = (
+            f"정상구간 Pearson r: {corr_value:.2f}"
+            if abs(corr_value) >= 0.15
+            else "정상구간 Pearson r: 약한 상관"
+        )
+
+    summary_text = (
+        f"최종 이상치 {outlier_n:,}건 / 전체 {total_n:,}건 ({outlier_ratio:.2f}%) · {corr_label}"
+    )
+
+    fig.update_layout(
+        height=680,
+        legend=dict(
+            orientation="h",
+            x=0.0,
+            y=1.24,
+            xanchor="left",
+            yanchor="bottom",
+            entrywidth=74,
+            font={"color": CHART_TICK_COLOR, "size": 10},
+        ),
+        margin=dict(t=188, b=170),
+        annotations=[
+            dict(
+                x=0.0,
+                y=-0.30,
+                xref="paper",
+                yref="paper",
+                xanchor="left",
+                yanchor="top",
+                showarrow=False,
+                text=summary_text,
+                font={"size": 12, "color": "#AEB9CB"},
+                bgcolor="rgba(15, 20, 30, 0.72)",
+                bordercolor="rgba(170, 188, 212, 0.22)",
+                borderwidth=1,
+                borderpad=4,
+            ),
+        ],
+        updatemenus=[
+            dict(
+                type="buttons",
+                direction="right",
+                x=0.0,
+                y=1.02,
+                xanchor="left",
+                yanchor="bottom",
+                showactive=True,
+                pad={"t": 2, "r": 4},
+                bgcolor="rgba(27, 32, 40, 0.85)",
+                bordercolor=CHART_LINE_COLOR,
+                borderwidth=1,
+                font={"color": CHART_TICK_COLOR, "size": 12},
+                buttons=[
+                    dict(
+                        label="정상 범위",
+                        method="relayout",
+                        args=[{"xaxis.range": x_zoom, "yaxis.range": y_zoom}],
+                    ),
+                    dict(
+                        label="전체 범위",
+                        method="relayout",
+                        args=[{"xaxis.range": x_full, "yaxis.range": y_full}],
+                    ),
+                ],
+            )
+        ],
     )
 
     return fig
@@ -627,5 +799,5 @@ def build_all_charts(
         "관측소별 데이터 가용률 및 품질 등급": chart_quality_grade(quality_df),
         "날짜별 관측소 결측률 히트맵": chart_missing_heatmap(df),
         "일별 평균 풍속 추이 (관측소별)": chart_daily_wind_speed(df),
-        "풍속 × 파고 상관관계": chart_wind_wave_scatter(df),
+        "풍속-파고 관계 기반 이상치 확인": chart_wind_wave_scatter(df),
     }
