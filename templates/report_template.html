@@ -151,6 +151,85 @@
       line-height: 1.4;
     }
 
+    .card-value-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .warn-val {
+      color: var(--grade-f-tx);
+    }
+
+    .grade-badge {
+      display: inline-flex;
+      align-items: center;
+      border-radius: 999px;
+      padding: 4px 9px;
+      font-size: 12px;
+      font-weight: 500;
+      border: 1px solid transparent;
+      line-height: 1;
+    }
+
+    .grade-a {
+      background: var(--grade-a-bg);
+      color: var(--grade-a-tx);
+      border-color: #d4e8be;
+    }
+
+    .grade-b {
+      background: var(--grade-b-bg);
+      color: var(--grade-b-tx);
+      border-color: #c6dcf4;
+    }
+
+    .grade-c {
+      background: var(--grade-c-bg);
+      color: var(--grade-c-tx);
+      border-color: #efd8b0;
+    }
+
+    .grade-d {
+      background: var(--grade-d-bg);
+      color: var(--grade-d-tx);
+      border-color: #efd0c6;
+    }
+
+    .grade-f {
+      background: var(--grade-f-bg);
+      color: var(--grade-f-tx);
+      border-color: #f5caca;
+    }
+
+    .availability {
+      min-width: 230px;
+    }
+
+    .availability-track {
+      width: 180px;
+      height: 8px;
+      border-radius: 999px;
+      background: #ecf1f7;
+      overflow: hidden;
+      display: inline-block;
+      vertical-align: middle;
+      margin-right: 8px;
+    }
+
+    .availability-fill {
+      height: 100%;
+      background: linear-gradient(90deg, #7cb342 0%, #4a86cf 100%);
+      border-radius: 999px;
+    }
+
+    .availability-text {
+      font-size: 13px;
+      color: #334155;
+      vertical-align: middle;
+    }
+
     .table-wrap {
       overflow-x: auto;
     }
@@ -182,6 +261,10 @@
       padding: 14px 16px;
       color: #3d4a5d;
       font-size: 14px;
+    }
+
+    .quote p {
+      margin: 4px 0;
     }
 
     .charts {
@@ -278,6 +361,7 @@
           <div class="card-label">총 관측소 수</div>
           <div class="card-value">{{ meta.station_count }}</div>
         </article>
+
         <article class="card">
           <div class="card-label">평균 데이터 가용률</div>
           <div class="card-value">{{ meta.avg_availability }}%</div>
@@ -285,13 +369,22 @@
             (유효값 ÷ 전체 관측값) × 100 / 유효값 = 전체 − 결측 − 이상치
           </div>
         </article>
+
         <article class="card">
           <div class="card-label">최우수 관측소</div>
-          <div class="card-value">{{ meta.best_station }}</div>
+          <div class="card-value-row">
+            <div class="card-value">{{ meta.best_station }}</div>
+            <span class="grade-badge grade-{{ meta.best_grade|lower }}">
+              {{ meta.best_grade }}
+            </span>
+          </div>
         </article>
+
         <article class="card">
           <div class="card-label">주의 필요 관측소 수</div>
-          <div class="card-value">{{ meta.alert_count }}</div>
+          <div class="card-value {% if meta.alert_count > 0 %}warn-val{% endif %}">
+            {{ meta.alert_count }}
+          </div>
           <div class="card-note">
             기준: 가용률 80% 미만 또는 연속 결측 3일 이상
           </div>
@@ -321,8 +414,17 @@
               <td>{{ row.total_records }}</td>
               <td>{{ row.missing_rate }}%</td>
               <td>{{ row.outlier_rate }}%</td>
-              <td>{{ row.availability_rate }}%</td>
-              <td>{{ row.grade }}</td>
+              <td class="availability">
+                <span class="availability-track">
+                  <span class="availability-fill" style="width: {{ row.availability_rate }}%;"></span>
+                </span>
+                <span class="availability-text">{{ row.availability_rate }}%</span>
+              </td>
+              <td>
+                <span class="grade-badge grade-{{ row.grade|lower }}">
+                  {{ row.grade }}
+                </span>
+              </td>
             </tr>
             {% endfor %}
           </tbody>
@@ -334,9 +436,9 @@
     <section class="section">
       <h2 class="section-title">가용률 산식</h2>
       <div class="quote">
-        가용률(%) = (전체 관측값 − 결측값 − 이상치값) ÷ 전체 관측값 × 100<br />
-        평균 가용률 = 관측소별 가용률의 산술 평균<br />
-        이상치 기준: 도메인 임계값(1차) + IQR 1.5배(2차)
+        <p>가용률(%) = (전체 관측값 − 결측값 − 이상치값) ÷ 전체 관측값 × 100</p>
+        <p>평균 가용률 = 관측소별 가용률의 산술 평균</p>
+        <p>이상치 기준: 도메인 임계값(1차) + IQR 1.5배(2차)</p>
       </div>
     </section>
 
