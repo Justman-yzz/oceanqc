@@ -12,25 +12,31 @@
 
   <style>
     :root {
-      --bg: #f6f8fb;
-      --surface: #ffffff;
-      --line: #e7ebf3;
-      --text: #1f2a37;
-      --text-muted: #5b6472;
-      --brand: #1f77b4;
-      --accent: #ef9f27;
-      --shadow: 0 8px 24px rgba(19, 35, 67, 0.06);
+      --bg: #111418;
+      --bg-grad-1: rgba(60, 88, 124, 0.16);
+      --bg-grad-2: rgba(239, 159, 39, 0.08);
 
-      --grade-a-bg: #eaf3de;
-      --grade-a-tx: #3b6d11;
-      --grade-b-bg: #e6f1fb;
-      --grade-b-tx: #185fa5;
-      --grade-c-bg: #faeeda;
-      --grade-c-tx: #854f0b;
-      --grade-d-bg: #faece7;
-      --grade-d-tx: #993c1d;
-      --grade-f-bg: #fcebeb;
-      --grade-f-tx: #a32d2d;
+      --surface: #1b2028;
+      --surface-soft: #171c23;
+      --line: rgba(155, 176, 204, 0.22);
+
+      --text: #e6edf5;
+      --text-muted: #aeb9cb;
+
+      --brand: #58a6ff;
+      --accent: #ef9f27;
+      --shadow: 0 14px 30px rgba(0, 0, 0, 0.38);
+
+      --grade-a-bg: #20341a;
+      --grade-a-tx: #9dcd68;
+      --grade-b-bg: #182b40;
+      --grade-b-tx: #69b2ff;
+      --grade-c-bg: #3b2d17;
+      --grade-c-tx: #f0b25f;
+      --grade-d-bg: #3f241e;
+      --grade-d-tx: #ef946f;
+      --grade-f-bg: #442327;
+      --grade-f-tx: #ff8a8a;
     }
 
     * {
@@ -39,11 +45,14 @@
 
     body {
       margin: 0;
-      background: var(--bg);
       color: var(--text);
       font-family: Pretendard, "Noto Sans KR", Inter, system-ui, -apple-system, sans-serif;
       font-weight: 400;
       line-height: 1.5;
+      background:
+        radial-gradient(circle at 12% 8%, var(--bg-grad-1), transparent 44%),
+        radial-gradient(circle at 84% 0%, var(--bg-grad-2), transparent 34%),
+        var(--bg);
     }
 
     .container {
@@ -52,7 +61,7 @@
     }
 
     .topbar {
-      background: var(--surface);
+      background: linear-gradient(135deg, #20262f 0%, #1a1f27 100%);
       border: 1px solid var(--line);
       border-radius: 16px;
       box-shadow: var(--shadow);
@@ -83,16 +92,16 @@
       border-radius: 999px;
       padding: 5px 10px;
       font-size: 12px;
-      border: 1px solid var(--line);
-      background: #f9fbff;
-      color: var(--text-muted);
+      border: 1px solid rgba(170, 189, 214, 0.26);
+      background: rgba(116, 144, 177, 0.12);
+      color: #d0d9e8;
       white-space: nowrap;
     }
 
     .badge-accent {
-      border-color: #f8d9ac;
-      background: #fff3e4;
-      color: #8f4f03;
+      border-color: rgba(239, 159, 39, 0.5);
+      background: rgba(239, 159, 39, 0.16);
+      color: #ffc272;
     }
 
     .meta {
@@ -125,7 +134,7 @@
     }
 
     .card {
-      background: #f9fbff;
+      background: var(--surface-soft);
       border: 1px solid var(--line);
       border-radius: 12px;
       padding: 14px;
@@ -147,7 +156,7 @@
     .card-note {
       margin-top: 8px;
       font-size: 11px;
-      color: #6a7483;
+      color: #95a5bc;
       line-height: 1.4;
     }
 
@@ -211,7 +220,7 @@
       width: 180px;
       height: 8px;
       border-radius: 999px;
-      background: #ecf1f7;
+      background: #2f3642;
       overflow: hidden;
       display: inline-block;
       vertical-align: middle;
@@ -219,15 +228,62 @@
     }
 
     .availability-fill {
+      display: block;
       height: 100%;
-      background: linear-gradient(90deg, #7cb342 0%, #4a86cf 100%);
       border-radius: 999px;
+      min-width: 2px;
+      transition: width 0.35s ease;
+    }
+
+    .availability-fill-a {
+      background: #639922;
+    }
+
+    .availability-fill-b {
+      background: #378add;
+    }
+
+    .availability-fill-c {
+      background: #ef9f27;
+    }
+
+    .availability-fill-d {
+      background: #d85a30;
+    }
+
+    .availability-fill-f {
+      background: #a32d2d;
     }
 
     .availability-text {
       font-size: 13px;
-      color: #334155;
+      color: #c7d2e4;
       vertical-align: middle;
+    }
+
+    .availability-text-a {
+      color: #9dcd68;
+      font-weight: 500;
+    }
+
+    .availability-text-b {
+      color: #69b2ff;
+      font-weight: 500;
+    }
+
+    .availability-text-c {
+      color: #f0b25f;
+      font-weight: 500;
+    }
+
+    .availability-text-d {
+      color: #ef946f;
+      font-weight: 500;
+    }
+
+    .availability-text-f {
+      color: #ff8a8a;
+      font-weight: 500;
     }
 
     .table-wrap {
@@ -250,16 +306,16 @@
 
     th {
       font-weight: 500;
-      color: #334155;
-      background: #f8fafc;
+      color: #dbe6f5;
+      background: #151a21;
     }
 
     .quote {
-      border-left: 4px solid #c9d7ec;
-      background: #f7faff;
+      border-left: 4px solid rgba(88, 166, 255, 0.5);
+      background: #161b22;
       border-radius: 10px;
       padding: 14px 16px;
-      color: #3d4a5d;
+      color: #c4d1e3;
       font-size: 14px;
     }
 
@@ -276,7 +332,7 @@
     .chart-card {
       border: 1px solid var(--line);
       border-radius: 12px;
-      background: #ffffff;
+      background: #161b22;
       padding: 12px;
     }
 
@@ -289,7 +345,7 @@
     .ch-note {
       margin-top: 8px;
       font-size: 12px;
-      color: var(--text-muted);
+      color: #9eabc1;
     }
 
     .footer {
@@ -299,12 +355,21 @@
       justify-content: space-between;
       gap: 12px;
       font-size: 12px;
-      color: var(--text-muted);
+      color: #98a7be;
+    }
+
+    .footer a {
+      color: #b8d6ff;
+      text-decoration: none;
+    }
+
+    .footer a:hover {
+      text-decoration: underline;
     }
 
     .mono {
       font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-      color: #324155;
+      color: #c5d2e6;
     }
 
     @media (max-width: 980px) {
@@ -335,7 +400,7 @@
       }
     }
   </style>
-  <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+  <script src="https://cdn.plot.ly/plotly-3.5.0.min.js"></script>
 </head>
 <body>
   <div class="container">
@@ -417,9 +482,9 @@
               <td>{{ row.outlier_rate }}%</td>
               <td class="availability">
                 <span class="availability-track">
-                  <span class="availability-fill" style="width: {{ row.availability_rate }}%;"></span>
+                  <span class="availability-fill availability-fill-{{ row.grade|lower }}" style="width: {{ row.availability_rate }}%;"></span>
                 </span>
-                <span class="availability-text">{{ row.availability_rate }}%</span>
+                <span class="availability-text availability-text-{{ row.grade|lower }}">{{ row.availability_rate }}%</span>
               </td>
               <td>
                 <span class="grade-badge grade-{{ row.grade|lower }}">
@@ -451,7 +516,28 @@
         <article class="chart-card">
           <h3 class="chart-title">{{ title }}</h3>
           {{ chart_html | safe }}
-          <p class="ch-note">해당 차트의 기준/해석 설명은 최종 리포트 단계에서 반영합니다.</p>
+          {% if title == "관측소별 데이터 가용률 및 품질 등급" %}
+          <p class="ch-note">
+            막대 길이는 가용률(유효값 ÷ 전체 관측값 × 100)입니다.<br />
+            등급 기준: A ≥ 95%, B ≥ 90%, C ≥ 80%, D ≥ 70%, F &lt; 70%.
+          </p>
+          {% elif title == "날짜별 관측소 결측률 히트맵" %}
+          <p class="ch-note">
+            월 버튼으로 1~31일 일자별 결측률을 비교합니다.<br />
+            색이 진한 주황에 가까울수록 결측률이 높고, 연속된 진한 구간은 통신/센서 장애 가능성을 시사합니다.
+          </p>
+          {% elif title == "일별 평균 풍속 추이 (관측소별)" %}
+          <p class="ch-note">
+            실선은 안정 구간(결측률 10% 미만), 점선은 결측 주의 구간(10~50%)이며, 50% 이상은 선을 끊어 표시합니다.<br />
+            월별 버튼으로 주차(1~4주) 패턴 변화를 확인하고, 관측소별 상대 추세를 비교하세요.
+          </p>
+          {% elif title == "풍속-파고 관계 기반 이상치 확인" %}
+          <p class="ch-note">
+            풍속과 파고의 정상 분포를 기준으로, 분포에서 크게 벗어나거나 도메인 임계값을 초과한 관측값을 이상치 후보로 표시했습니다.
+          </p>
+          {% else %}
+          <p class="ch-note">차트 해석 기준은 OceanQC 설정(config.py)의 품질 규칙을 따릅니다.</p>
+          {% endif %}
         </article>
         {% endfor %}
       </div>
@@ -459,7 +545,12 @@
 
     <!-- 6) 푸터 -->
     <footer class="footer">
-      <div>Generated by OceanQC · github.com/yourname/oceanqc</div>
+      <div>
+        Generated by OceanQC ·
+        <a href="https://github.com/Justman-yzz/oceanqc" target="_blank" rel="noopener noreferrer">Repository</a>
+        ·
+        <a href="https://github.com/Justman-yzz/oceanqc/blob/main/docs/sample_report.html" target="_blank" rel="noopener noreferrer">Sample Report</a>
+      </div>
       <div class="mono">python main.py -i data/sample.csv -o reports/</div>
     </footer>
   </div>
