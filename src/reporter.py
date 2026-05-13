@@ -58,4 +58,6 @@ def render_html_report(
     try:
         out_path.write_text(rendered_html, encoding="utf-8")
     except Exception as exc:
-        raise ValueError(f"리포트 파일 저장에 실패했습니다: {out_path} ({exc})") from exc
+        raise ValueError(
+            f"리포트 파일 저장에 실패했습니다: {out_path} ({exc})"
+        ) from exc
