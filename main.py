@@ -73,7 +73,9 @@ def build_meta(df: pd.DataFrame, quality_df: pd.DataFrame) -> dict:
     return {
         "generated_at": datetime.now().strftime("%Y-%m-%d %H:%M"),
         "date_range": date_range,
-        "station_count": int(df["station_name"].nunique()) if "station_name" in df.columns else 0,
+        "station_count": (
+            int(df["station_name"].nunique()) if "station_name" in df.columns else 0
+        ),
         "avg_availability": avg_availability,
         "best_station": best_station,
         "best_grade": best_grade,
