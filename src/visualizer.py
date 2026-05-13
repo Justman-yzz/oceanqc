@@ -158,7 +158,7 @@ def chart_quality_grade(quality_df: pd.DataFrame) -> go.Figure:
 
     _apply_dark_layout(
         fig,
-        title="관측소별 데이터 가용률 및 품질 등급",
+        title="",  # 카드 제목만 사용
         xaxis_title="데이터 가용률(%)",
         yaxis_title="관측소",
     )
